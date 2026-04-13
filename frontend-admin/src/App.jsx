@@ -49,6 +49,10 @@ function App() {
   const [returnModal, setReturnModal] = useState(null);
   const [returnNotes, setReturnNotes] = useState('');
 
+  // Products
+  const [productModal, setProductModal] = useState(null);
+  const [productForm, setProductForm] = useState({ name: '', category: '', price: '', stockQuantity: '', imageUrl: '', description: '' });
+
   useEffect(() => { localStorage.setItem('admin-dark', darkMode); }, [darkMode]);
 
   const fetchData = useCallback(async () => {
@@ -107,6 +111,26 @@ function App() {
   // Low stock products
   const lowStockProducts = products.filter(p => p.stockQuantity < 10);
   const criticalStock = products.filter(p => p.stockQuantity <= 3);
+
+  // --- PRODUCT FUNCTIONS ---
+  const handleSaveProduct = async () => {
+    if (!productForm.name || !productForm.price || !productForm.stockQuantity) return alert("Name, price, and stock are required!");
+    try {
+      const method = productModal === 'new' ? 'POST' : 'PUT';
+      const url = productModal === 'new' ? `${API}/products` : `${API}/products/${productForm.id}`;
+      await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({...productForm, price: Number(productForm.price), stockQuantity: Number(productForm.stockQuantity)}) });
+      setProductModal(null);
+      fetchData(); fetchAnalytics();
+    } catch (e) { alert("Error saving product"); }
+  };
+
+  const handleDeleteProduct = async (id) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
+    try {
+      await fetch(`${API}/products/${id}`, { method: 'DELETE' });
+      fetchData(); fetchAnalytics();
+    } catch (e) { alert("Error deleting product"); }
+  };
 
   // --- POS FUNCTIONS ---
   const addToCart = (p) => {
@@ -574,6 +598,7 @@ function App() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ marginTop: 0 }}>Warehouse Management</h2>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button onClick={() => { setProductForm({ name: '', category: '', price: '', stockQuantity: '', imageUrl: '', description: '' }); setProductModal('new'); }} style={smallBtn('#10B981')}>➕ Add Product</button>
                 {criticalStock.length > 0 && <span style={{ background: darkMode ? '#2D1215' : '#FEF2F2', color: '#EF4444', padding: '6px 14px', borderRadius: '8px', fontWeight: 800, fontSize: '12px' }}>🔴 {criticalStock.length} Critical</span>}
                 <button onClick={() => exportCSV(products, 'inventory_export.csv')} style={smallBtn('#3B82F6')}>📤 Export CSV</button>
               </div>
@@ -581,7 +606,7 @@ function App() {
             <table style={tableStyle}>
               <thead>
                 <tr style={{ textAlign: 'left', color: t.textSec, borderBottom: `2px solid ${t.cardBorder}` }}>
-                  <th style={{ padding: '15px' }}>Product</th><th>Category</th><th>Rate</th><th>Stock</th><th>Bar</th><th>Status</th>
+                  <th style={{ padding: '15px' }}>Product</th><th>Category</th><th>Rate</th><th>Stock</th><th>Bar</th><th>Status</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -593,6 +618,10 @@ function App() {
                     <td style={{ fontWeight: 900, color: p.stockQuantity < 10 ? (p.stockQuantity <= 3 ? '#EF4444' : '#F59E0B') : t.text }}>{p.stockQuantity}</td>
                     <td style={{ minWidth: '120px' }}><div style={{ width: '100%', height: '8px', background: t.badge, borderRadius: '4px' }}><div style={{ width: `${Math.min((p.stockQuantity / 100) * 100, 100)}%`, height: '8px', borderRadius: '4px', background: p.stockQuantity <= 3 ? '#EF4444' : p.stockQuantity < 10 ? '#F59E0B' : '#10B981', transition: 'width 0.5s' }}></div></div></td>
                     <td>{p.stockQuantity <= 3 ? <span style={{ color: '#EF4444', fontWeight: 900, fontSize: '12px' }}>🔴 CRITICAL</span> : p.stockQuantity < 10 ? <span style={{ color: '#F59E0B', fontWeight: 900, fontSize: '12px' }}>⚠️ Low Stock</span> : <span style={{ color: '#10B981', fontWeight: 900, fontSize: '12px' }}>✅ Healthy</span>}</td>
+                    <td style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                      <button onClick={() => { setProductForm(p); setProductModal('edit'); }} style={smallBtn('#F59E0B')}>Edit</button>
+                      <button onClick={() => handleDeleteProduct(p.id)} style={smallBtn('#EF4444')}>Drop</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -746,6 +775,27 @@ function App() {
 
       {/* ===== INVOICE MODAL ===== */}
       {invoiceOrder && <InvoiceModal order={invoiceOrder} onClose={() => setInvoiceOrder(null)} billType={invoiceOrder.billNumber?.startsWith('GST') ? 'Wholesale' : 'Retail'} t={t} />}
+
+      {/* ===== PRODUCT MODAL ===== */}
+      {productModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={() => setProductModal(null)}>
+          <div style={{ background: t.card, padding: '30px', borderRadius: '24px', width: '500px', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px' }}>{productModal === 'new' ? 'Add New Product' : 'Edit Product'}</h3>
+            <input placeholder="Product Name *" style={inputStyle} value={productForm.name} onChange={e => setProductForm({ ...productForm, name: e.target.value })} />
+            <input placeholder="Category" style={inputStyle} value={productForm.category} onChange={e => setProductForm({ ...productForm, category: e.target.value })} />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input placeholder="Price *" type="number" style={inputStyle} value={productForm.price} onChange={e => setProductForm({ ...productForm, price: e.target.value })} />
+              <input placeholder="Starting Stock *" type="number" style={inputStyle} value={productForm.stockQuantity} onChange={e => setProductForm({ ...productForm, stockQuantity: e.target.value })} />
+            </div>
+            <input placeholder="Image URL" style={inputStyle} value={productForm.imageUrl} onChange={e => setProductForm({ ...productForm, imageUrl: e.target.value })} />
+            <textarea placeholder="Product Description..." style={{ ...inputStyle, height: '80px' }} value={productForm.description} onChange={e => setProductForm({ ...productForm, description: e.target.value })} />
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+              <button onClick={handleSaveProduct} style={{ flex: 1, padding: '14px', background: '#10B981', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 800, cursor: 'pointer' }}>💾 Save Product</button>
+              <button onClick={() => setProductModal(null)} style={{ flex: 1, padding: '14px', background: t.input, color: t.textSec, border: `1px solid ${t.cardBorder}`, borderRadius: '12px', fontWeight: 800, cursor: 'pointer' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== RETURN REVIEW MODAL ===== */}
       {returnModal && (
