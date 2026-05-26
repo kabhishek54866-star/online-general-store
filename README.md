@@ -179,7 +179,7 @@ Opens at `http://localhost:5174`
 
 ---
 
-## 📸 Screenshots
+## 📸 screenshots
 
 ### 🛒 Customer Storefront
 
