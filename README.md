@@ -181,8 +181,39 @@ Opens at `http://localhost:5174`
 
 ## 📸 Screenshots
 
-> Add screenshots of your application here
+### 🛒 Customer Storefront
 
+| Store Home | Product Grid (Light Mode) |
+|---|---|
+| ![Store Home](screenshots/store-home.png) | ![Store Light](screenshots/store-light.png) |
+
+| Shopping Cart | Track My Orders |
+|---|---|
+| ![Cart](screenshots/cart.png) | ![Orders](screenshots/track-orders.png) |
+
+---
+
+### 📊 Admin POS Dashboard
+
+| Business Dashboard | Revenue & Category Charts |
+|---|---|
+| ![Dashboard](screenshots/admin-dashboard.png) | ![Charts](screenshots/admin-charts.png) |
+
+| Point of Sale | Order Ledger |
+|---|---|
+| ![POS](screenshots/pos-billing.png) | ![Orders](screenshots/order-ledger.png) |
+
+| Dispatch Hub | Stock Master |
+|---|---|
+| ![Dispatch](screenshots/dispatch-hub.png) | ![Stock](screenshots/stock-master.png) |
+
+| Add Product | Invoice Preview |
+|---|---|
+| ![Add Product](screenshots/add-product.png) | ![Invoice](screenshots/invoice.png) |
+
+| Support Inbox |  |
+|---|---|
+| ![Support](screenshots/support-inbox.png) | |
 ---
 
 ## 📝 License
