@@ -147,17 +147,108 @@ function MyOrders({ showToast }) {
             </div>
           </div>
           {expandedOrder === order.id && (
-            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+            <div className="purchase-details-section">
+              {/* Order Timeline */}
               <OrderTimeline status={order.status} />
-              {order.deliveryBoy && order.deliveryBoy !== 'Pending Assignment' && (
-                <div style={{ textAlign: 'center', marginTop: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  🚴 Delivery Partner: <strong>{order.deliveryBoy}</strong>
+
+              {/* Purchase Details Grid */}
+              <div className="purchase-details-grid">
+                {/* Items Breakdown */}
+                <div className="purchase-detail-card">
+                  <div className="purchase-detail-card-header">
+                    <span className="purchase-detail-icon">🧾</span>
+                    <h4>Items Ordered</h4>
+                  </div>
+                  <div className="purchase-items-list">
+                    {order.items ? order.items.split(',').map((item, idx) => {
+                      const trimmed = item.trim();
+                      const match = trimmed.match(/^(\d+)x\s+(.+)$/);
+                      const qty = match ? match[1] : '1';
+                      const name = match ? match[2] : trimmed;
+                      return (
+                        <div key={idx} className="purchase-item-row">
+                          <div className="purchase-item-info">
+                            <span className="purchase-item-qty">{qty}×</span>
+                            <span className="purchase-item-name">{name}</span>
+                          </div>
+                        </div>
+                      );
+                    }) : <span className="purchase-detail-value">—</span>}
+                  </div>
                 </div>
-              )}
-              <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '13px' }}>
-                <span style={{ color: order.paymentStatus === 'Paid' ? '#10B981' : '#EF4444', fontWeight: 700 }}>
-                  {order.paymentStatus === 'Paid' ? '✅ Payment Received' : '💰 Payment: ' + (order.paymentMode || 'Cash on Delivery')}
-                </span>
+
+                {/* Payment Info */}
+                <div className="purchase-detail-card">
+                  <div className="purchase-detail-card-header">
+                    <span className="purchase-detail-icon">💳</span>
+                    <h4>Payment Details</h4>
+                  </div>
+                  <div className="purchase-detail-rows">
+                    <div className="purchase-detail-row">
+                      <span className="purchase-detail-label">Amount</span>
+                      <span className="purchase-detail-value" style={{ color: '#10B981', fontWeight: 900, fontSize: '16px' }}>₹{order.totalAmount}</span>
+                    </div>
+                    <div className="purchase-detail-row">
+                      <span className="purchase-detail-label">Payment Mode</span>
+                      <span className="purchase-detail-value">{order.paymentMode || 'Cash on Delivery'}</span>
+                    </div>
+                    <div className="purchase-detail-row">
+                      <span className="purchase-detail-label">Status</span>
+                      <span className={`purchase-payment-badge ${order.paymentStatus === 'Paid' ? 'paid' : 'unpaid'}`}>
+                        {order.paymentStatus === 'Paid' ? '✅ Paid' : '⏳ ' + (order.paymentStatus || 'Unpaid')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Info */}
+                <div className="purchase-detail-card">
+                  <div className="purchase-detail-card-header">
+                    <span className="purchase-detail-icon">🚚</span>
+                    <h4>Delivery Info</h4>
+                  </div>
+                  <div className="purchase-detail-rows">
+                    <div className="purchase-detail-row">
+                      <span className="purchase-detail-label">Address</span>
+                      <span className="purchase-detail-value">{order.address || 'Not provided'}</span>
+                    </div>
+                    <div className="purchase-detail-row">
+                      <span className="purchase-detail-label">Delivery Partner</span>
+                      <span className="purchase-detail-value">
+                        {order.deliveryBoy && order.deliveryBoy !== 'Pending Assignment'
+                          ? <>🚴 <strong>{order.deliveryBoy}</strong></>
+                          : <span style={{ color: 'var(--text-muted)' }}>Pending Assignment</span>
+                        }
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Order Info */}
+                <div className="purchase-detail-card">
+                  <div className="purchase-detail-card-header">
+                    <span className="purchase-detail-icon">📋</span>
+                    <h4>Order Info</h4>
+                  </div>
+                  <div className="purchase-detail-rows">
+                    <div className="purchase-detail-row">
+                      <span className="purchase-detail-label">Order ID</span>
+                      <span className="purchase-detail-value" style={{ fontFamily: 'monospace', fontWeight: 800, color: '#10B981' }}>{order.billNumber}</span>
+                    </div>
+                    <div className="purchase-detail-row">
+                      <span className="purchase-detail-label">Customer</span>
+                      <span className="purchase-detail-value">{order.customerName}</span>
+                    </div>
+                    <div className="purchase-detail-row">
+                      <span className="purchase-detail-label">Phone</span>
+                      <span className="purchase-detail-value">{order.contactNumber}</span>
+                    </div>
+                    <div className="purchase-detail-row">
+                      <span className="purchase-detail-label">Ordered On</span>
+                      <span className="purchase-detail-value">{order.orderDate}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

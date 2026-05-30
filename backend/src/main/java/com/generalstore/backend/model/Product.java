@@ -25,6 +25,9 @@ public class Product {
     // NEW: The Category label
     private String category;
 
+    // NEW: Cost/Purchase price for profit calculation
+    private double costPrice;
+
     public Product() {
     }
 
@@ -49,4 +52,7 @@ public class Product {
 
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
-}
+
+    public double getCostPrice() { return costPrice; }
+    public void setCostPrice(double costPrice) { this.costPrice = costPrice; }
+}

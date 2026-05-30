@@ -255,4 +255,74 @@ public class AnalyticsController {
                 .filter(o -> o.getStatus() != null)
                 .collect(Collectors.groupingBy(Order::getStatus, Collectors.counting()));
     }
+
+    // Daily profit breakdown — profit = (sellingPrice - costPrice) x qty, grouped by date
+    @GetMapping("/daily-profit")
+    public List<Map<String, Object>> getDailyProfit() {
+        List<Order> orders = orderRepository.findAll();
+        List<Product> products = productRepository.findAll();
+
+        // Build product lookup: name (lowercase) -> Product
+        Map<String, Product> productMap = new HashMap<>();
+        for (Product p : products) {
+            productMap.put(p.getName().toLowerCase(), p);
+        }
+
+        // date -> { revenue, cost, profit, orderCount }
+        Map<String, double[]> dailyData = new LinkedHashMap<>();
+
+        for (Order order : orders) {
+            if (order.getOrderDate() == null || order.getItems() == null || order.getTotalAmount() == null) continue;
+
+            // Extract date part
+            String dateStr = order.getOrderDate();
+            if (dateStr.contains(",")) {
+                dateStr = dateStr.split(",")[0].trim();
+            } else if (dateStr.length() > 10) {
+                dateStr = dateStr.substring(0, 10);
+            }
+
+            double orderRevenue = order.getTotalAmount();
+            double orderCost = 0;
+
+            // Parse items and calculate cost
+            String[] items = order.getItems().split(",");
+            for (String item : items) {
+                item = item.trim();
+                String[] parts = item.split("x ", 2);
+                if (parts.length == 2) {
+                    int qty = 1;
+                    try { qty = Integer.parseInt(parts[0].trim()); } catch (Exception e) {}
+                    String productName = parts[1].trim().toLowerCase();
+                    Product product = productMap.get(productName);
+                    if (product != null && product.getCostPrice() > 0) {
+                        orderCost += product.getCostPrice() * qty;
+                    } else if (product != null) {
+                        // If no cost price set, estimate cost as 70% of selling price
+                        orderCost += product.getPrice() * 0.7 * qty;
+                    }
+                }
+            }
+
+            double[] data = dailyData.computeIfAbsent(dateStr, k -> new double[4]);
+            data[0] += orderRevenue;  // revenue
+            data[1] += orderCost;     // cost
+            data[2] += (orderRevenue - orderCost); // profit
+            data[3] += 1;             // order count
+        }
+
+        return dailyData.entrySet().stream()
+                .map(entry -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("date", entry.getKey());
+                    item.put("revenue", Math.round(entry.getValue()[0]));
+                    item.put("cost", Math.round(entry.getValue()[1]));
+                    item.put("profit", Math.round(entry.getValue()[2]));
+                    item.put("orders", (int) entry.getValue()[3]);
+                    double margin = entry.getValue()[0] > 0 ? (entry.getValue()[2] / entry.getValue()[0]) * 100 : 0;
+                    item.put("margin", Math.round(margin * 10.0) / 10.0);
+                    return item;
+                })
+                .collect(Collectors.toList());
+    }
 }

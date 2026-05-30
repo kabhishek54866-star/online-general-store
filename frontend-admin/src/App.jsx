@@ -31,6 +31,7 @@ function App() {
   const [revenueTrend, setRevenueTrend] = useState([]);
   const [categorySales, setCategorySales] = useState([]);
   const [statusDist, setStatusDist] = useState({});
+  const [dailyProfit, setDailyProfit] = useState([]);
 
   // Coupons
   const [coupons, setCoupons] = useState([]);
@@ -51,7 +52,7 @@ function App() {
 
   // Products
   const [productModal, setProductModal] = useState(null);
-  const [productForm, setProductForm] = useState({ name: '', category: '', price: '', stockQuantity: '', imageUrl: '', description: '' });
+  const [productForm, setProductForm] = useState({ name: '', category: '', price: '', costPrice: '', stockQuantity: '', imageUrl: '', description: '' });
 
   useEffect(() => { localStorage.setItem('admin-dark', darkMode); }, [darkMode]);
 
@@ -65,18 +66,20 @@ function App() {
 
   const fetchAnalytics = useCallback(async () => {
     try {
-      const [sRes, tRes, rtRes, csRes, sdRes] = await Promise.all([
+      const [sRes, tRes, rtRes, csRes, sdRes, dpRes] = await Promise.all([
         fetch(`${API}/analytics/summary`),
         fetch(`${API}/analytics/top-products`),
         fetch(`${API}/analytics/revenue-trend`),
         fetch(`${API}/analytics/category-sales`),
-        fetch(`${API}/analytics/status-distribution`)
+        fetch(`${API}/analytics/status-distribution`),
+        fetch(`${API}/analytics/daily-profit`)
       ]);
       setAnalytics(await sRes.json());
       setTopProducts(await tRes.json());
       setRevenueTrend(await rtRes.json());
       setCategorySales(await csRes.json());
       setStatusDist(await sdRes.json());
+      setDailyProfit(await dpRes.json());
     } catch (err) { console.error("Analytics unavailable", err); }
   }, []);
 
@@ -118,7 +121,7 @@ function App() {
     try {
       const method = productModal === 'new' ? 'POST' : 'PUT';
       const url = productModal === 'new' ? `${API}/products` : `${API}/products/${productForm.id}`;
-      await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({...productForm, price: Number(productForm.price), stockQuantity: Number(productForm.stockQuantity)}) });
+      await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({...productForm, price: Number(productForm.price), costPrice: Number(productForm.costPrice || 0), stockQuantity: Number(productForm.stockQuantity)}) });
       setProductModal(null);
       fetchData(); fetchAnalytics();
     } catch (e) { alert("Error saving product"); }
@@ -358,10 +361,11 @@ function App() {
         {currentView === 'dashboard' && (
           <div>
             {/* Summary Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '30px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '20px', marginBottom: '30px' }}>
               <SummaryCard icon="💰" label="Total Revenue" value={`₹${analytics?.totalRevenue?.toLocaleString() || 0}`} color="#10B981" bg={darkMode ? '#0D2818' : '#ECFDF5'} t={t} />
               <SummaryCard icon="📦" label="Total Orders" value={analytics?.totalOrders || 0} color="#3B82F6" bg={darkMode ? '#0D1F3C' : '#EFF6FF'} t={t} />
               <SummaryCard icon="📊" label="Avg Order Value" value={`₹${analytics?.avgOrderValue || 0}`} color="#8B5CF6" bg={darkMode ? '#1A0D3C' : '#F5F3FF'} t={t} />
+              <SummaryCard icon="📈" label="Today's Profit" value={(() => { const today = new Date().toLocaleDateString('en-IN'); const tp = dailyProfit.find(d => d.date === today); return tp ? `₹${tp.profit?.toLocaleString()}` : '₹0'; })()} color="#F59E0B" bg={darkMode ? '#2D2305' : '#FFFBEB'} t={t} />
               <SummaryCard icon="⚠️" label="Low Stock Items" value={analytics?.lowStockCount || 0} color="#EF4444" bg={darkMode ? '#2D1215' : '#FEF2F2'} t={t} />
             </div>
 
@@ -424,6 +428,72 @@ function App() {
                   ))
                 )}
               </div>
+            </div>
+
+            {/* Daily Profit Breakdown */}
+            <div style={{ ...panelCard, marginTop: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ marginTop: 0, fontSize: '16px' }}>💹 Daily Profit Breakdown</h3>
+                <button onClick={() => exportCSV(dailyProfit, 'daily_profit.csv')} style={smallBtn('#F59E0B')}>📤 Export</button>
+              </div>
+              {dailyProfit.length === 0 ? (
+                <p style={{ color: t.textMuted, fontSize: '13px' }}>No profit data yet. Start taking orders!</p>
+              ) : (
+                <div>
+                  {/* Profit Summary Stats */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
+                    <div style={{ background: darkMode ? '#0D2818' : '#ECFDF5', padding: '16px', borderRadius: '14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Total Profit</div>
+                      <div style={{ fontSize: '22px', fontWeight: 900, color: '#10B981' }}>₹{dailyProfit.reduce((s, d) => s + (d.profit || 0), 0).toLocaleString()}</div>
+                    </div>
+                    <div style={{ background: darkMode ? '#0D1F3C' : '#EFF6FF', padding: '16px', borderRadius: '14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Total Cost</div>
+                      <div style={{ fontSize: '22px', fontWeight: 900, color: '#3B82F6' }}>₹{dailyProfit.reduce((s, d) => s + (d.cost || 0), 0).toLocaleString()}</div>
+                    </div>
+                    <div style={{ background: darkMode ? '#1A0D3C' : '#F5F3FF', padding: '16px', borderRadius: '14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Avg Margin</div>
+                      <div style={{ fontSize: '22px', fontWeight: 900, color: '#8B5CF6' }}>{(dailyProfit.reduce((s, d) => s + (d.margin || 0), 0) / Math.max(dailyProfit.length, 1)).toFixed(1)}%</div>
+                    </div>
+                    <div style={{ background: darkMode ? '#2D2305' : '#FFFBEB', padding: '16px', borderRadius: '14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Best Day</div>
+                      <div style={{ fontSize: '22px', fontWeight: 900, color: '#F59E0B' }}>₹{Math.max(...dailyProfit.map(d => d.profit || 0)).toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  {/* Profit Chart - Bar chart with revenue and profit */}
+                  <ProfitBarChart data={dailyProfit} t={t} darkMode={darkMode} />
+
+                  {/* Daily Breakdown Table */}
+                  <div style={{ marginTop: '20px', maxHeight: '300px', overflowY: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', color: t.text }}>
+                      <thead>
+                        <tr style={{ textAlign: 'left', color: t.textSec, borderBottom: `2px solid ${t.cardBorder}`, position: 'sticky', top: 0, background: t.card }}>
+                          <th style={{ padding: '10px', fontSize: '12px', fontWeight: 700 }}>Date</th>
+                          <th style={{ padding: '10px', fontSize: '12px', fontWeight: 700 }}>Revenue</th>
+                          <th style={{ padding: '10px', fontSize: '12px', fontWeight: 700 }}>Cost</th>
+                          <th style={{ padding: '10px', fontSize: '12px', fontWeight: 700 }}>Profit</th>
+                          <th style={{ padding: '10px', fontSize: '12px', fontWeight: 700 }}>Margin</th>
+                          <th style={{ padding: '10px', fontSize: '12px', fontWeight: 700 }}>Orders</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...dailyProfit].reverse().map((d, idx) => (
+                          <tr key={idx} style={{ borderBottom: `1px solid ${t.cardBorder}` }}>
+                            <td style={{ padding: '10px', fontWeight: 700, fontSize: '13px' }}>{d.date}</td>
+                            <td style={{ padding: '10px', fontSize: '13px' }}>₹{d.revenue?.toLocaleString()}</td>
+                            <td style={{ padding: '10px', fontSize: '13px', color: '#EF4444' }}>₹{d.cost?.toLocaleString()}</td>
+                            <td style={{ padding: '10px', fontWeight: 800, fontSize: '13px', color: d.profit >= 0 ? '#10B981' : '#EF4444' }}>₹{d.profit?.toLocaleString()}</td>
+                            <td style={{ padding: '10px' }}>
+                              <span style={{ background: d.margin >= 20 ? (darkMode ? '#0D2818' : '#ECFDF5') : d.margin >= 10 ? (darkMode ? '#2D2305' : '#FFFBEB') : (darkMode ? '#2D1215' : '#FEF2F2'), color: d.margin >= 20 ? '#10B981' : d.margin >= 10 ? '#F59E0B' : '#EF4444', padding: '3px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 800 }}>{d.margin}%</span>
+                            </td>
+                            <td style={{ padding: '10px', fontWeight: 600, fontSize: '13px' }}>{d.orders}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Order Status Distribution + Recent Activity */}
@@ -598,7 +668,7 @@ function App() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ marginTop: 0 }}>Warehouse Management</h2>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <button onClick={() => { setProductForm({ name: '', category: '', price: '', stockQuantity: '', imageUrl: '', description: '' }); setProductModal('new'); }} style={smallBtn('#10B981')}>➕ Add Product</button>
+                <button onClick={() => { setProductForm({ name: '', category: '', price: '', costPrice: '', stockQuantity: '', imageUrl: '', description: '' }); setProductModal('new'); }} style={smallBtn('#10B981')}>➕ Add Product</button>
                 {criticalStock.length > 0 && <span style={{ background: darkMode ? '#2D1215' : '#FEF2F2', color: '#EF4444', padding: '6px 14px', borderRadius: '8px', fontWeight: 800, fontSize: '12px' }}>🔴 {criticalStock.length} Critical</span>}
                 <button onClick={() => exportCSV(products, 'inventory_export.csv')} style={smallBtn('#3B82F6')}>📤 Export CSV</button>
               </div>
@@ -784,7 +854,10 @@ function App() {
             <input placeholder="Product Name *" style={inputStyle} value={productForm.name} onChange={e => setProductForm({ ...productForm, name: e.target.value })} />
             <input placeholder="Category" style={inputStyle} value={productForm.category} onChange={e => setProductForm({ ...productForm, category: e.target.value })} />
             <div style={{ display: 'flex', gap: '10px' }}>
-              <input placeholder="Price *" type="number" style={inputStyle} value={productForm.price} onChange={e => setProductForm({ ...productForm, price: e.target.value })} />
+              <input placeholder="Selling Price *" type="number" style={inputStyle} value={productForm.price} onChange={e => setProductForm({ ...productForm, price: e.target.value })} />
+              <input placeholder="Cost/Purchase Price" type="number" style={inputStyle} value={productForm.costPrice} onChange={e => setProductForm({ ...productForm, costPrice: e.target.value })} />
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
               <input placeholder="Starting Stock *" type="number" style={inputStyle} value={productForm.stockQuantity} onChange={e => setProductForm({ ...productForm, stockQuantity: e.target.value })} />
             </div>
             <input placeholder="Image URL" style={inputStyle} value={productForm.imageUrl} onChange={e => setProductForm({ ...productForm, imageUrl: e.target.value })} />
@@ -884,6 +957,60 @@ function DonutChart({ data, t }) {
             <span style={{ fontSize: '13px', fontWeight: 800 }}>₹{d.sales}</span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ===== PROFIT BAR CHART (SVG) =====
+function ProfitBarChart({ data, t, darkMode }) {
+  if (!data || data.length === 0) return <p style={{ color: t.textMuted, fontSize: '13px' }}>No profit data yet</p>;
+  const maxVal = Math.max(...data.map(d => Math.max(d.revenue || 0, d.profit || 0)), 1);
+  const barWidth = Math.max(14, Math.min(30, 500 / data.length - 12));
+  const groupWidth = barWidth * 2 + 6;
+  const width = data.length * (groupWidth + 10) + 60;
+  return (
+    <div>
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '12px', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#10B981', display: 'inline-block' }}></span>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: t.textSec }}>Revenue</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#F59E0B', display: 'inline-block' }}></span>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: t.textSec }}>Profit</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#EF4444', display: 'inline-block' }}></span>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: t.textSec }}>Cost</span>
+        </div>
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <svg width={Math.max(width, 400)} height="220" viewBox={`0 0 ${Math.max(width, 400)} 220`}>
+          {data.map((d, i) => {
+            const revH = ((d.revenue || 0) / maxVal) * 150;
+            const profitH = ((d.profit || 0) / maxVal) * 150;
+            const costH = ((d.cost || 0) / maxVal) * 150;
+            const x = 40 + i * (groupWidth + 10);
+            return (
+              <g key={i}>
+                {/* Revenue bar */}
+                <rect x={x} y={185 - revH} width={barWidth} height={revH} rx="4" fill="#10B981" opacity="0.85" />
+                {/* Profit bar */}
+                <rect x={x + barWidth + 3} y={185 - profitH} width={barWidth} height={profitH} rx="4" fill={d.profit >= 0 ? '#F59E0B' : '#EF4444'} opacity="0.85" />
+                {/* Revenue label */}
+                <text x={x + barWidth / 2} y={180 - revH} textAnchor="middle" fontSize="8" fill="#10B981" fontWeight="700">₹{d.revenue}</text>
+                {/* Profit label */}
+                <text x={x + barWidth + 3 + barWidth / 2} y={180 - profitH} textAnchor="middle" fontSize="8" fill={d.profit >= 0 ? '#F59E0B' : '#EF4444'} fontWeight="700">₹{d.profit}</text>
+                {/* Date label */}
+                <text x={x + groupWidth / 2} y={200} textAnchor="middle" fontSize="9" fill={t.textMuted}>{d.date?.split('/')[0] || i + 1}</text>
+                {/* Margin label */}
+                <text x={x + groupWidth / 2} y={212} textAnchor="middle" fontSize="8" fill={d.margin >= 20 ? '#10B981' : d.margin >= 10 ? '#F59E0B' : '#EF4444'} fontWeight="700">{d.margin}%</text>
+              </g>
+            );
+          })}
+        </svg>
       </div>
     </div>
   );
