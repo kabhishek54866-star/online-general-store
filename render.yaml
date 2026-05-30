@@ -1,0 +1,28 @@
+databases:
+  - name: general-store-db
+    plan: free
+    databaseName: general_store_db
+    user: general_store_user
+
+services:
+  - type: web
+    name: general-store-backend
+    plan: free
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: general-store-db
+          property: connectionString
+      - key: DATABASE_USERNAME
+        fromDatabase:
+          name: general-store-db
+          property: user
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: general-store-db
+          property: password
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
